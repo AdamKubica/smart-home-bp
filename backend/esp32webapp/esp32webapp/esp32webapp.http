@@ -1,0 +1,6 @@
+@esp32webapp_HostAddress = http://localhost:5134
+
+GET {{esp32webapp_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
