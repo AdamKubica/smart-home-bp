@@ -3,6 +3,10 @@
 		{ 
 			"name": "uzol1-prostredie",
 			"path": "uzol1-prostredie"
+		},
+		{ 
+			"name": "uzol2-brana",
+			"path": "uzol2-brana"
 		}
 	],
 	"settings": {}
