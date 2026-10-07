@@ -1,4 +1,7 @@
-﻿using MQTTnet;
+﻿using System.Globalization;
+using System.Text;
+using Microsoft.EntityFrameworkCore;
+using MQTTnet;
 using MQTTnet.Client;
 using esp32webapp.Data;
 using esp32webapp.Models;
@@ -15,15 +18,14 @@ public class MqttListenerService : BackgroundService
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
-        var factory = new MqttFactory();
-        _client = factory.CreateMqttClient();
+        _client = new MqttFactory().CreateMqttClient();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var options = new MqttClientOptionsBuilder()
             .WithTcpServer("test.mosquitto.org", 1883)
-            .WithClientId("dotnet-backend")
+            .WithClientId("dotnet-backend-aa-bp") // unikátne ID, na verejnom brokeri sa nesmie biť s cudzím
             .Build();
 
         _client.ApplicationMessageReceivedAsync += HandleMessageAsync;
@@ -40,32 +42,60 @@ public class MqttListenerService : BackgroundService
     private async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs e)
     {
         string topic = e.ApplicationMessage.Topic;
-        string payload = System.Text.Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment);
+        string payload = Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment);
 
         _logger.LogInformation("Prišlo [{Topic}]: {Payload}", topic, payload);
 
+        // očakávame dom/{uzol}/{typ}; príkazy a odpovede (4 časti) ignorujeme
         var parts = topic.Split('/');
-        if (parts.Length < 3 || parts[0] != "dom") return;
+        if (parts.Length != 3 || parts[0] != "dom") return;
 
         string nodeId = parts[1];
-        string sensorType = parts[2];
-
-        if (parts.Length > 3) return;
-
-        if (!double.TryParse(payload, System.Globalization.CultureInfo.InvariantCulture, out double value))
-            return;
+        string type = parts[2];
 
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+        if (type == "rfid")
+        {
+            await HandleRfidAsync(db, nodeId, payload.Trim());
+            return;
+        }
+
+        if (!double.TryParse(payload, CultureInfo.InvariantCulture, out double value))
+            return;
+
         db.SensorReadings.Add(new SensorReading
         {
             NodeId = nodeId,
-            SensorType = sensorType,
+            SensorType = type,
             Value = value,
             Timestamp = DateTime.UtcNow
         });
-
         await db.SaveChangesAsync();
+    }
+
+    private async Task HandleRfidAsync(AppDbContext db, string nodeId, string uid)
+    {
+        var card = await db.RfidCards.FirstOrDefaultAsync(c => c.Uid == uid);
+        bool granted = card != null && card.IsActive;
+
+        db.AccessLogs.Add(new AccessLog
+        {
+            NodeId = nodeId,
+            Uid = uid,
+            Granted = granted,
+            Timestamp = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var response = new MqttApplicationMessageBuilder()
+            .WithTopic($"dom/{nodeId}/rfid/odpoved")
+            .WithPayload(granted ? "OK" : "DENY")
+            .Build();
+        await _client.PublishAsync(response);
+
+        _logger.LogInformation("RFID {Uid} na uzle {Node}: {Vysledok}",
+            uid, nodeId, granted ? "POVOLENÉ" : "ZAMIETNUTÉ");
     }
 }

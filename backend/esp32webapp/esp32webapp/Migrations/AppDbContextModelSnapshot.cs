@@ -22,6 +22,33 @@ namespace esp32webapp.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("esp32webapp.Models.AccessLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Granted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("NodeId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Uid")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AccessLogs");
+                });
+
             modelBuilder.Entity("esp32webapp.Models.Node", b =>
                 {
                     b.Property<int>("Id")
@@ -48,6 +75,57 @@ namespace esp32webapp.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Nodes");
+                });
+
+            modelBuilder.Entity("esp32webapp.Models.RfidCard", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("OwnerName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Uid")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Uid")
+                        .IsUnique();
+
+                    b.ToTable("RfidCards");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            IsActive = true,
+                            OwnerName = "Adam",
+                            Uid = "A1B2C3D4"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            IsActive = true,
+                            OwnerName = "Host",
+                            Uid = "11223344"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            IsActive = false,
+                            OwnerName = "Stara karta",
+                            Uid = "DEADBEEF"
+                        });
                 });
 
             modelBuilder.Entity("esp32webapp.Models.Rule", b =>
