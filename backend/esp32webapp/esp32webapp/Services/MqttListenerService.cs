@@ -25,18 +25,43 @@ public class MqttListenerService : BackgroundService
     {
         var options = new MqttClientOptionsBuilder()
             .WithTcpServer("test.mosquitto.org", 1883)
-            .WithClientId("dotnet-backend-aa-bp") // unikátne ID, na verejnom brokeri sa nesmie biť s cudzím
+            .WithClientId("dotnet-backend-aa-bp")
             .Build();
 
         _client.ApplicationMessageReceivedAsync += HandleMessageAsync;
 
-        await _client.ConnectAsync(options, stoppingToken);
-        _logger.LogInformation("MQTT pripojený");
+        // Ak spojenie spadne alebo sa nepodarí, skúšame to znova každých 5 sekúnd
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            if (!_client.IsConnected)
+            {
+                try
+                {
+                    await _client.ConnectAsync(options, stoppingToken);
+                    _logger.LogInformation("MQTT pripojený");
 
-        await _client.SubscribeAsync("dom/#", cancellationToken: stoppingToken);
-        _logger.LogInformation("Odoberám tému dom/#");
+                    await _client.SubscribeAsync("dom/#", cancellationToken: stoppingToken);
+                    _logger.LogInformation("Odoberám tému dom/#");
+                }
+                catch (OperationCanceledException)
+                {
+                    break; // aplikácia sa vypína
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Pripojenie k MQTT zlyhalo: {Sprava}. Skúsim znova o 5 s.", ex.Message);
+                }
+            }
 
-        await Task.Delay(Timeout.Infinite, stoppingToken);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
     }
 
     private async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs e)
