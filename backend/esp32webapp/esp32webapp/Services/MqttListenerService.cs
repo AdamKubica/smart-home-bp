@@ -24,7 +24,7 @@ public class MqttListenerService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var options = new MqttClientOptionsBuilder()
-            .WithTcpServer("test.mosquitto.org", 1883)
+            .WithTcpServer("broker.hivemq.com", 1883)
             .WithClientId("dotnet-backend-aa-bp")
             .Build();
 
@@ -122,5 +122,20 @@ public class MqttListenerService : BackgroundService
 
         _logger.LogInformation("RFID {Uid} na uzle {Node}: {Vysledok}",
             uid, nodeId, granted ? "POVOLENÉ" : "ZAMIETNUTÉ");
+    }
+
+    public async Task<bool> PublishAsync(string topic, string payload, CancellationToken ct = default)
+    {
+        if (!_client.IsConnected)
+            return false;
+
+        var message = new MqttApplicationMessageBuilder()
+            .WithTopic(topic)
+            .WithPayload(payload)
+            .Build();
+
+        await _client.PublishAsync(message, ct);
+        _logger.LogInformation("Odoslaný príkaz [{Topic}]: {Payload}", topic, payload);
+        return true;
     }
 }

@@ -11,7 +11,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddHostedService<MqttListenerService>();
+builder.Services.AddSingleton<MqttListenerService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<MqttListenerService>());
 
 var app = builder.Build();
 
