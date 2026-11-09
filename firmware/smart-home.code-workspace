@@ -1,12 +1,16 @@
 {
 	"folders": [
-		{ 
+		{
 			"name": "uzol1-prostredie",
 			"path": "uzol1-prostredie"
 		},
-		{ 
+		{
 			"name": "uzol2-brana",
 			"path": "uzol2-brana"
+		},
+		{
+			"name": "uzol3-pohyb",
+			"path": "uzol3-pohyb"
 		}
 	],
 	"settings": {}
