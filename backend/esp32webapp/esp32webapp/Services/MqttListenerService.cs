@@ -81,6 +81,12 @@ public class MqttListenerService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+        // Každá správa od uzla aktualizuje jeho záznam v tabuľke Nodes
+        await UpdateNodeAsync(db, nodeId, type, payload.Trim());
+
+        // Správa o stave (online/offline) nie je meranie, ďalej ju nespracúvame
+        if (type == "stav") return;
+
         if (type == "rfid")
         {
             await HandleRfidAsync(db, nodeId, payload.Trim());
@@ -99,6 +105,43 @@ public class MqttListenerService : BackgroundService
         });
         await db.SaveChangesAsync();
     }
+
+    private async Task UpdateNodeAsync(AppDbContext db, string nodeId, string type, string payload)
+    {
+        var node = await db.Nodes.FirstOrDefaultAsync(n => n.NodeId == nodeId);
+
+        // Neznámy uzol sa zaregistruje automaticky pri prvej správe
+        if (node == null)
+        {
+            node = new Node { NodeId = nodeId, Name = nodeId };
+            db.Nodes.Add(node);
+            _logger.LogInformation("Nový uzol zaregistrovaný: {Node}", nodeId);
+        }
+
+        if (type == "stav")
+        {
+            // "offline" posiela broker sám, keď sa uzol neočakávane odpojí (Last Will)
+            node.IsOnline = payload == "online";
+        }
+        else
+        {
+            node.IsOnline = true;
+            node.LastSeen = DateTime.UtcNow;
+            if (string.IsNullOrEmpty(node.Type))
+                node.Type = UrciTypUzla(type);
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    // Typ uzla odvodíme od toho, aké dáta posiela
+    private static string UrciTypUzla(string type) => type switch
+    {
+        "teplota" or "svetlo" => "prostredie",
+        "rfid" => "rfid",
+        "pohyb" => "pohyb",
+        _ => ""
+    };
 
     private async Task HandleRfidAsync(AppDbContext db, string nodeId, string uid)
     {

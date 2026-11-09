@@ -57,6 +57,9 @@ namespace esp32webapp.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("IsOnline")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime>("LastSeen")
                         .HasColumnType("datetime2");
 
@@ -66,13 +69,17 @@ namespace esp32webapp.Migrations
 
                     b.Property<string>("NodeId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("NodeId")
+                        .IsUnique();
 
                     b.ToTable("Nodes");
                 });

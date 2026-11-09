@@ -19,6 +19,10 @@ public class AppDbContext : DbContext
             .HasIndex(c => c.Uid)
             .IsUnique();
 
+        modelBuilder.Entity<Node>()
+            .HasIndex(n => n.NodeId)
+            .IsUnique();
+
         modelBuilder.Entity<RfidCard>().HasData(
             new RfidCard { Id = 1, Uid = "A1B2C3D4", OwnerName = "Adam", IsActive = true },
             new RfidCard { Id = 2, Uid = "11223344", OwnerName = "Host", IsActive = true },
