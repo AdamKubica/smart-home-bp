@@ -13,19 +13,26 @@ public class MqttListenerService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IMqttClient _client;
     private readonly ILogger<MqttListenerService> _logger;
+    private readonly IConfiguration _config;
 
-    public MqttListenerService(IServiceScopeFactory scopeFactory, ILogger<MqttListenerService> logger)
+    public MqttListenerService(IServiceScopeFactory scopeFactory, ILogger<MqttListenerService> logger, IConfiguration config)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _config = config;
         _client = new MqttFactory().CreateMqttClient();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Adresa brokera je v appsettings.json (sekcia Mqtt), aby sa dala zmeniť bez úpravy kódu
+        string host = _config["Mqtt:Host"] ?? "localhost";
+        int port = _config.GetValue("Mqtt:Port", 1883);
+        string clientId = _config["Mqtt:ClientId"] ?? "dotnet-backend";
+
         var options = new MqttClientOptionsBuilder()
-            .WithTcpServer("broker.hivemq.com", 1883)
-            .WithClientId("dotnet-backend-aa-bp")
+            .WithTcpServer(host, port)
+            .WithClientId(clientId)
             .Build();
 
         _client.ApplicationMessageReceivedAsync += HandleMessageAsync;
@@ -38,7 +45,7 @@ public class MqttListenerService : BackgroundService
                 try
                 {
                     await _client.ConnectAsync(options, stoppingToken);
-                    _logger.LogInformation("MQTT pripojený");
+                    _logger.LogInformation("MQTT pripojený k {Host}:{Port}", host, port);
 
                     await _client.SubscribeAsync("dom/#", cancellationToken: stoppingToken);
                     _logger.LogInformation("Odoberám tému dom/#");
@@ -63,7 +70,6 @@ public class MqttListenerService : BackgroundService
             }
         }
     }
-
     private async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs e)
     {
         string topic = e.ApplicationMessage.Topic;
