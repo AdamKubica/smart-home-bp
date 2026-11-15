@@ -1,15 +1,11 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include "config.h" 
 
-const char* WIFI_SSID = "Wokwi-GUEST";
-const char* WIFI_PASS = "";
-
-const char* MQTT_BROKER    = "broker.hivemq.com";
-const int   MQTT_PORT      = 1883;
 const char* MQTT_CLIENT_ID = "esp32-brana";
-
 const char* TOPIC_RFID    = "dom/brana/rfid";
 const char* TOPIC_ODPOVED = "dom/brana/rfid/odpoved";
+const char* TOPIC_STAV    = "dom/brana/stav"; 
 
 // Simulované karty (pri reálnom HW nahradí RC522)
 const int   PIN_KARTY[]  = {32, 33, 25};
@@ -60,8 +56,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 void pripojMQTT() {
   while (!mqtt.connected()) {
     Serial.print("Pripajam na MQTT...");
-    if (mqtt.connect(MQTT_CLIENT_ID)) {
+    // Last Will: ak uzol vypadne, broker za neho pošle "offline"
+    if (mqtt.connect(MQTT_CLIENT_ID, TOPIC_STAV, 1, true, "offline")) {
       Serial.println(" OK");
+      mqtt.publish(TOPIC_STAV, "online", true);
       mqtt.subscribe(TOPIC_ODPOVED);
     } else {
       Serial.printf(" zlyhalo (rc=%d)\n", mqtt.state());

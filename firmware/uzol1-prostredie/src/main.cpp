@@ -1,16 +1,12 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include "config.h" 
 
-const char* WIFI_SSID = "Wokwi-GUEST";
-const char* WIFI_PASS = "";
-
-const char* MQTT_BROKER    = "broker.hivemq.com";
-const int   MQTT_PORT      = 1883;
 const char* MQTT_CLIENT_ID = "esp32-izba1";
-
 const char* TOPIC_TEPLOTA = "dom/izba1/teplota";
 const char* TOPIC_SVETLO  = "dom/izba1/svetlo";
 const char* TOPIC_PRIKAZ  = "dom/izba1/svetlo/prikaz";
+const char* TOPIC_STAV    = "dom/izba1/stav";   // online/offline
 
 const int PIN_PHOTO = 34;
 const int PIN_NTC   = 35;
@@ -53,12 +49,14 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 void pripojMQTT() {
   while (!mqtt.connected()) {
-    Serial.print("Pripajam na MQTT broker...");
-    if (mqtt.connect(MQTT_CLIENT_ID)) {
+    Serial.print("Pripajam na MQTT...");
+    // Last Will: ak uzol vypadne, broker za neho pošle "offline"
+    if (mqtt.connect(MQTT_CLIENT_ID, TOPIC_STAV, 1, true, "offline")) {
       Serial.println(" OK");
+      mqtt.publish(TOPIC_STAV, "online", true);
       mqtt.subscribe(TOPIC_PRIKAZ);
     } else {
-      Serial.printf(" zlyhalo, rc=%d, skusam znova o 2s\n", mqtt.state());
+      Serial.printf(" zlyhalo (rc=%d)\n", mqtt.state());
       delay(2000);
     }
   }

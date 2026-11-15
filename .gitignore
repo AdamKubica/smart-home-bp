@@ -10,3 +10,6 @@ obj/
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# Lokálne nastavenie Wi-Fi a brokera pre reálny hardvér
+secrets.h

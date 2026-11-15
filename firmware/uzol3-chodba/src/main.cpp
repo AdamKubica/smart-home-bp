@@ -1,11 +1,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include "config.h"
 
-const char* WIFI_SSID = "Wokwi-GUEST";
-const char* WIFI_PASS = "";
-
-const char* MQTT_BROKER = "broker.hivemq.com";
-const int   MQTT_PORT = 1883;
 const char* MQTT_CLIENT_ID = "esp32-chodba";
 
 const char* TOPIC_POHYB = "dom/chodba/pohyb";
