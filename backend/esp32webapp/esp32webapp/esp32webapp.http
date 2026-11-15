@@ -1,6 +1,29 @@
 @esp32webapp_HostAddress = http://localhost:5134
 
-GET {{esp32webapp_HostAddress}}/weatherforecast/
+### Zoznam uzlov a ich stav (online/offline)
+GET {{esp32webapp_HostAddress}}/api/nodes
 Accept: application/json
 
-###
+### Posledná nameraná hodnota každého senzora
+GET {{esp32webapp_HostAddress}}/api/sensors/latest
+Accept: application/json
+
+### História teploty v izbe za posledných 24 hodín
+GET {{esp32webapp_HostAddress}}/api/sensors/izba1/teplota?hours=24
+Accept: application/json
+
+### Posledných 20 pokusov o prístup cez RFID
+GET {{esp32webapp_HostAddress}}/api/accesslogs?count=20
+Accept: application/json
+
+### Zapnutie svetla v izbe
+POST {{esp32webapp_HostAddress}}/api/devices/izba1/light
+Content-Type: application/json
+
+{ "on": true }
+
+### Vypnutie svetla v izbe
+POST {{esp32webapp_HostAddress}}/api/devices/izba1/light
+Content-Type: application/json
+
+{ "on": false }
