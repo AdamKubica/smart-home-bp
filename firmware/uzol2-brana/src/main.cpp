@@ -1,29 +1,31 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include "config.h" 
+#include <SPI.h>
+#include <MFRC522.h>
+#include "config.h"   // Wi-Fi a adresa brokera (firmware/spolocne)
 
 const char* MQTT_CLIENT_ID = "esp32-brana";
 const char* TOPIC_RFID    = "dom/brana/rfid";
 const char* TOPIC_ODPOVED = "dom/brana/rfid/odpoved";
-const char* TOPIC_STAV    = "dom/brana/stav"; 
+const char* TOPIC_STAV    = "dom/brana/stav";   // online/offline
 
-// Simulované karty (pri reálnom HW nahradí RC522)
-const int   PIN_KARTY[]  = {32, 33, 25};
-const char* UID_KARTY[]  = {"A1B2C3D4", "11223344", "DEADBEEF"};
-const int   POCET_KARIET = 3;
+// Čítačka RC522 na zbernici SPI: SCK = 18, MISO = 19, MOSI = 23
+const int PIN_RFID_SS  = 5;
+const int PIN_RFID_RST = 21;
 
-const int PIN_LED_OK  = 18;
-const int PIN_LED_NOK = 19;
-const int PIN_BUZZER  = 21;
+const int PIN_LED_OK  = 32;
+const int PIN_LED_NOK = 33;
+const int PIN_BUZZER  = 25;
 
-const unsigned long TIMEOUT_MS = 5000;  // pri ručnom teste z MQTT Explorera daj 15000
+const unsigned long TIMEOUT_MS = 5000;
 
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
+MFRC522 rfid(PIN_RFID_SS, PIN_RFID_RST);
 
 bool cakamNaOdpoved = false;
 unsigned long casOdoslania = 0;
-int predoslyStav[POCET_KARIET];
+char uidText[21];
 
 void pripojWiFi() {
   Serial.print("Pripajam na WiFi");
@@ -68,25 +70,37 @@ void pripojMQTT() {
   }
 }
 
-// Jediná funkcia, ktorá sa zmení pri prechode na RC522
+// Kontrola zapojenia: čítačka musí vrátiť číslo verzie čipu
+void skontrolujCitacku() {
+  byte verzia = rfid.PCD_ReadRegister(MFRC522::VersionReg);
+  if (verzia == 0x00 || verzia == 0xFF)
+    Serial.println("RC522 neodpoveda - skontroluj zapojenie!");
+  else
+    Serial.printf("RC522 pripravena (verzia 0x%02X)\n", verzia);
+}
+
+// Vráti UID priloženej karty ako text, napr. "A1B2C3D4", inak nullptr
 const char* precitajKartu() {
-  for (int i = 0; i < POCET_KARIET; i++) {
-    int stav = digitalRead(PIN_KARTY[i]);
-    bool stlacene = (predoslyStav[i] == HIGH && stav == LOW);
-    predoslyStav[i] = stav;
-    if (stlacene) return UID_KARTY[i];
-  }
-  return nullptr;
+  if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial())
+    return nullptr;
+
+  for (byte i = 0; i < rfid.uid.size; i++)
+    sprintf(&uidText[i * 2], "%02X", rfid.uid.uidByte[i]);
+  uidText[rfid.uid.size * 2] = '\0';
+
+  // Karta sa uspí, takže kým ju neodložíš, neprečíta sa znova
+  rfid.PICC_HaltA();
+  return uidText;
 }
 
 void setup() {
   Serial.begin(115200);
-  for (int i = 0; i < POCET_KARIET; i++) {
-    pinMode(PIN_KARTY[i], INPUT_PULLUP);
-    predoslyStav[i] = HIGH;
-  }
   pinMode(PIN_LED_OK, OUTPUT);
   pinMode(PIN_LED_NOK, OUTPUT);
+
+  SPI.begin();
+  rfid.PCD_Init();
+  skontrolujCitacku();
 
   pripojWiFi();
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
@@ -104,7 +118,7 @@ void loop() {
     signalizuj(false);
   }
 
-  if (cakamNaOdpoved) return;  // počas čakania ignoruj ďalšie karty
+  if (cakamNaOdpoved) return;
 
   const char* uid = precitajKartu();
   if (uid != nullptr) {
