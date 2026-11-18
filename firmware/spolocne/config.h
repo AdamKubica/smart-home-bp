@@ -1,11 +1,12 @@
 // Spoločné nastavenie siete pre všetky uzly.
 //
-// Predvolené hodnoty platia pre simulátor Wokwi. Pri reálnom hardvéri sa
-// vedľa tohto súboru vytvorí secrets.h (vzor je v secrets.example.h).
-// Súbor secrets.h sa do Gitu neukladá, lebo obsahuje heslo k Wi-Fi.
+// Prostredie esp32dev (predvolené) je pre simulátor Wokwi.
+// Prostredie hw je pre reálnu dosku: berie údaje zo súboru secrets.h
+// (vzor je v secrets.example.h). Súbor secrets.h sa do Gitu neukladá,
+// lebo obsahuje heslo k Wi-Fi.
 #pragma once
 
-#if __has_include("secrets.h")
+#ifdef REALNY_HW
   #include "secrets.h"
 #else
   #define WIFI_SSID   "Wokwi-GUEST"
