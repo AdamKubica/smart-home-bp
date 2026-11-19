@@ -27,3 +27,23 @@ POST {{esp32webapp_HostAddress}}/api/devices/izba1/light
 Content-Type: application/json
 
 { "on": false }
+
+### Zoznam RFID kariet
+GET {{esp32webapp_HostAddress}}/api/cards
+Accept: application/json
+
+### Neznáme karty (priložené, ale nie sú v systéme)
+GET {{esp32webapp_HostAddress}}/api/cards/unknown
+Accept: application/json
+
+### Pridanie novej karty
+POST {{esp32webapp_HostAddress}}/api/cards
+Content-Type: application/json
+
+{ "uid": "07C28763", "ownerName": "Adam prívesok", "isActive": true }
+
+### Zablokovanie karty s Id 4
+PUT {{esp32webapp_HostAddress}}/api/cards/4
+Content-Type: application/json
+
+{ "ownerName": "Adam prívesok", "isActive": false }
